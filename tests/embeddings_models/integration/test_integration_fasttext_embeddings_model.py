@@ -1,3 +1,6 @@
+# Pylint error for TemporaryDirectory ask for with statement
+# pylint: disable=consider-using-with
+
 import os
 import platform
 from tempfile import TemporaryDirectory
@@ -14,6 +17,7 @@ from tests.embeddings_models.integration.tools import MockedDataTransform
 from tests.parser.integration.base_retrain import AddressParserRetrainTestCase
 
 
+@skipIf(os.environ["TEST_LEVEL"] == "unit", "Cannot run test without a proper GPU or RAM.")
 class FastTextEmbeddingsModelIntegrationTest(AddressParserRetrainTestCase):
     @classmethod
     def setUpClass(cls):

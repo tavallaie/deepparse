@@ -1,6 +1,7 @@
 # Bug with PyTorch source code makes torch.tensor as not callable for pylint.
 # We also skip protected-access since we test the encoder and decoder step
 # pylint: disable=not-callable, protected-access
+import os
 import unittest
 from unittest import skipIf
 from unittest.mock import patch
@@ -11,8 +12,14 @@ from deepparse.network import Seq2SeqModel
 from ..integration.base import Seq2SeqIntegrationTestCase
 
 
-@skipIf(not torch.cuda.is_available(), "no gpu available")
-class Seq2SeqIntegrationTest(Seq2SeqIntegrationTestCase):
+@skipIf(os.environ["TEST_LEVEL"] == "unit", "Cannot run test without a proper GPU or RAM.")
+class Seq2SeqGPUIntegrationTest(Seq2SeqIntegrationTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super(Seq2SeqGPUIntegrationTest, cls).setUpClass()
+        cls.a_torch_device = torch.device("cuda:0")
+        cls.a_target_vector = torch.tensor([[0, 1, 1, 4, 5, 8], [1, 0, 3, 8, 0, 0]], device=cls.a_torch_device)
+
     def setUp(self) -> None:
         super().setUp()
 
@@ -32,14 +39,14 @@ class Seq2SeqIntegrationTest(Seq2SeqIntegrationTestCase):
         self.none_target = None  # No target (for teacher forcing)
         self.a_value_greater_than_threshold = 0.1
 
-        self.a_target_vector = torch.tensor([[0, 1, 1, 4, 5, 8], [1, 0, 3, 8, 0, 0]], device=self.a_torch_device)
-
     def test_whenEncoderStep_thenEncoderStepIsOk(self):
         # encoding for two address: "["15 major st london ontario n5z1e1", "15 major st london ontario n5z1e1"]"
 
-        (decoder_input, decoder_hidden, encoder_outputs,) = self.pre_trained_seq2seq_model._encoder_step(
-            self.to_predict_tensor, self.a_lengths_tensor, self.a_batch_size
-        )
+        (
+            decoder_input,
+            decoder_hidden,
+            encoder_outputs,
+        ) = self.pre_trained_seq2seq_model._encoder_step(self.to_predict_tensor, self.a_lengths_list, self.a_batch_size)
 
         self.assertEqual(decoder_input.shape[1], self.a_batch_size)
         self.assertTrue(decoder_input[0][0] == self.begin_of_sequence_idx)
@@ -65,7 +72,7 @@ class Seq2SeqIntegrationTest(Seq2SeqIntegrationTestCase):
             self.decoder_hidden_tensor,
             self.encoder_hidden,
             self.none_target,
-            self.a_lengths_tensor,
+            self.a_lengths_list,
             self.a_batch_size,
         )
 
@@ -81,7 +88,7 @@ class Seq2SeqIntegrationTest(Seq2SeqIntegrationTestCase):
             self.decoder_hidden_tensor,
             self.encoder_hidden,
             self.a_target_vector,
-            self.a_lengths_tensor,
+            self.a_lengths_list,
             self.a_batch_size,
         )
 
@@ -100,7 +107,7 @@ class Seq2SeqIntegrationTest(Seq2SeqIntegrationTestCase):
             self.decoder_hidden_tensor,
             self.encoder_hidden,
             self.a_target_vector,
-            self.a_lengths_tensor,
+            self.a_lengths_list,
             self.a_batch_size,
         )
 
@@ -119,7 +126,7 @@ class Seq2SeqIntegrationTest(Seq2SeqIntegrationTestCase):
             self.decoder_hidden_tensor,
             self.encoder_hidden,
             self.none_target,
-            self.a_lengths_tensor,
+            self.a_lengths_list,
             self.a_batch_size,
         )
 

@@ -1,3 +1,6 @@
+# Pylint error for TemporaryDirectory ask for with statement
+# pylint: disable=consider-using-with
+
 import os
 import platform
 from tempfile import TemporaryDirectory
@@ -7,11 +10,13 @@ from bpemb import BPEmb
 from torch.utils.data import DataLoader
 
 from deepparse.embeddings_models import BPEmbEmbeddingsModel
+from tests.base_file_exist import FileCreationTestCase
 from tests.embeddings_models.integration.tools import MockedDataTransform
 from tests.parser.integration.base_retrain import AddressParserRetrainTestCase
 
 
-class BPEmbEmbeddingsModelIntegrationTest(AddressParserRetrainTestCase):
+@skipIf(os.environ["TEST_LEVEL"] == "unit", "Cannot run test without a proper GPU or RAM.")
+class BPEmbEmbeddingsModelIntegrationTest(AddressParserRetrainTestCase, FileCreationTestCase):
     @classmethod
     def setUpClass(cls):
         super(BPEmbEmbeddingsModelIntegrationTest, cls).setUpClass()
@@ -24,7 +29,7 @@ class BPEmbEmbeddingsModelIntegrationTest(AddressParserRetrainTestCase):
     def test_givenANewCacheDir_whenBPEmbModelInit_thenCreateNewCache(self):
         BPEmbEmbeddingsModel(self.fake_cache_path, verbose=self.verbose)
 
-        self.assertTrue(os.path.exists(os.path.join(self.fake_cache_path, "multi")))
+        self.assertFileExist(os.path.join(self.fake_cache_path, "multi"))
 
     @skipIf(platform.system() != "Windows", "Integration test on Windows env.")
     def test_givenAWindowsOS_whenBPEmbModelInit_thenLoadWithProperFunction(self):

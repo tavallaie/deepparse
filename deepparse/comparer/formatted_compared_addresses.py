@@ -1,3 +1,5 @@
+# pylint: disable=superfluous-parens
+
 import os
 import sys
 from abc import ABC, abstractmethod
@@ -113,7 +115,7 @@ class FormattedComparedAddresses(ABC):
         """
 
     @staticmethod
-    def _get_color_diff(string_one: str, string_two: str, highlight=False) -> str:
+    def _get_color_diff(string_one: str, string_two: str, highlight: bool = False) -> str:
         """
         Compare two strings and determine the difference between the two. The differences are noted with colour code;
         if the first string has more elements than the second one, it will be noted in one colour; on the contrary,
@@ -171,7 +173,7 @@ class FormattedComparedAddresses(ABC):
         self,
         name_one: str = "first address",
         name_two: str = "second address",
-        verbose=True,
+        verbose: bool = True,
     ) -> str:
         """
         Print the output of the string with colour codes that represent the differences between the two strings.
@@ -195,10 +197,10 @@ class FormattedComparedAddresses(ABC):
 
         for address_component_name in address_component_names:
             list_of_list_tag = []
-            for parsed_address in [
+            for parsed_address in (
                 self.first_address.to_list_of_tuples(),
                 self.second_address.to_list_of_tuples(),
-            ]:
+            ):
                 list_of_list_tag.append(
                     " ".join(
                         [

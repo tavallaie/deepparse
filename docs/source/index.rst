@@ -24,12 +24,13 @@ Use deepparse to
 
 - parse multinational address using one of our pretrained models with or without attention mechanism,
 - parse addresses directly from the command line without code to write,
+- parse addresses with our out-of-the-box FastAPI parser,
 - retrain our pretrained models on new data to improve parsing on specific country address patterns,
 - retrain our pretrained models with new prediction tags easily,
 - retrain our pretrained models with or without freezing some layers,
 - train a new Seq2Seq addresses parsing models easily using a new model configuration.
 
-Deepparse is compatible with the **latest version of PyTorch** and  **Python >= 3.7**.
+Deepparse is compatible with the **latest version of PyTorch** and  **Python >= 3.8**.
 
 Countries and Results
 =====================
@@ -590,21 +591,21 @@ Getting Started
    # Print the parsed address
    print(parsed_address)
 
-    # or using one of our dataset container
-    addresses_to_parse = CSVDatasetContainer("./a_path.csv", column_names=["address_column_name"],
-                                             is_training_container=False)
-    address_parser(addresses_to_parse)
+   # or using one of our dataset container
+   addresses_to_parse = CSVDatasetContainer("./a_path.csv", column_names=["address_column_name"],
+                                            is_training_container=False)
+   address_parser(addresses_to_parse)
 
 The default predictions tags are the following
 
-    - "StreetNumber": for the street number,
-    - "StreetName": for the name of the street,
-    - "Unit": for the unit (such as apartment),
-    - "Municipality": for the municipality,
-    - "Province": for the province or local region,
-    - "PostalCode": for the postal code,
-    - "Orientation": for the street orientation (e.g. west, east),
-    - "GeneralDelivery": for other delivery information.
+    - ``"StreetNumber"``: for the street number,
+    - ``"StreetName"``: for the name of the street,
+    - ``"Unit"``: for the unit (such as apartment),
+    - ``"Municipality"``: for the municipality,
+    - ``"Province"``: for the province or local region,
+    - ``"PostalCode"``: for the postal code,
+    - ``"Orientation"``: for the street orientation (e.g. west, east),
+    - ``"GeneralDelivery"``: for other delivery information.
 
 Parse Addresses From the Command Line
 *************************************
@@ -618,7 +619,7 @@ You can also use our cli to parse addresses using:
 Parse Addresses Using Your Own Retrained Model
 **********************************************
 
-See `here <https://github.com/GRAAL-Research/deepparse/blob/master/examples/retrained_model_parsing.py>`_ for a complete example.
+See `here <https://github.com/GRAAL-Research/deepparse/blob/main/examples/retrained_model_parsing.py>`_ for a complete example.
 
 .. code-block:: python
 
@@ -629,19 +630,19 @@ See `here <https://github.com/GRAAL-Research/deepparse/blob/master/examples/retr
 
 Retrain a Model
 ***************
-See `here <https://github.com/GRAAL-Research/deepparse/blob/master/examples/fine_tuning.py>`_ for a complete example
-using Pickle and `here <https://github.com/GRAAL-Research/deepparse/blob/master/examples/fine_tuning_with_csv_dataset.py>`_
+See `here <https://github.com/GRAAL-Research/deepparse/blob/main/examples/fine_tuning.py>`_ for a complete example
+using Pickle and `here <https://github.com/GRAAL-Research/deepparse/blob/main/examples/fine_tuning_with_csv_dataset.py>`_
 for a complete example using CSV.
 
 .. code-block:: python
 
-    address_parser.retrain(training_container, 0.8, epochs=5, batch_size=8)
+    address_parser.retrain(training_container, train_ratio=0.8, epochs=5, batch_size=8)
 
 One can also freeze some layers to speed up the training using the ``layers_to_freeze`` parameter.
 
 .. code-block:: python
 
-    address_parser.retrain(training_container, 0.8, epochs=5, batch_size=8, layers_to_freeze="seq2seq")
+    address_parser.retrain(training_container, train_ratio=0.8, epochs=5, batch_size=8, layers_to_freeze="seq2seq")
 
 
 Or you can also give a specific name to the retrained model. This name will be use as the model name (for print and
@@ -649,41 +650,100 @@ class name) when reloading it.
 
 .. code-block:: python
 
-    address_parser.retrain(training_container, 0.8, epochs=5, batch_size=8, name_of_the_retrain_parser="MyNewParser")
+    address_parser.retrain(training_container, train_ratio=0.8, epochs=5, batch_size=8, name_of_the_retrain_parser="MyNewParser")
+
+
+Parse Address With Our Out-Of-The-Box FastAPI Parse Model
+*********************************************************
+You can use Out-Of-The-Box RESTAPI to parse addresses:
+
+Installation
+------------
+First, ensure that you have Docker Engine and Docker Compose installed on your machine.
+if not, you can install them using the following documentations in the following order:
+
+
+1. `Docker Engine <https://docs.docker.com/engine/install/>`_
+
+2. `Docker Compose <https://docs.docker.com/compose/install/>`_
+
+Also, you can monitor your application usage with `Sentry <https://sentry.io>`_ by setting the environment variable SENTRY_DSN to your Sentry's project DSN. There is an example of the .env file in the root of the project named .env_example.
+
+Once you have Docker Engine and Docker Compose installed, you can run the following command to start the FastAPI application:
+
+.. code-block:: sh
+
+    docker compose up app
+
+Request Examples
+----------------
+
+Once the application is up and running and port 8000 is exported on your localhost, you can send a request with one
+of the following methods:
+
+cURL POST request
+~~~~~~~~~~~~~~~~~
+
+.. code-block:: sh
+
+    curl -X POST --location "http://127.0.0.1:8000/parse/bpemb-attention" --http1.1 \
+        -H "Host: 127.0.0.1:8000" \
+        -H "Content-Type: application/json" \
+        -d "[
+              {\"raw\": \"350 rue des Lilas Ouest Quebec city Quebec G1L 1B6\"},
+              {\"raw\": \"2325 Rue de l'Université, Québec, QC G1V 0A6\"}
+            ]"
+
+Python POST request
+~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+    import requests
+
+    url = 'http://localhost:8000/parse/bpemb'
+    addresses = [
+        {"raw": "350 rue des Lilas Ouest Quebec city Quebec G1L 1B6"},
+        {"raw": "2325 Rue de l'Université, Québec, QC G1V 0A6"}
+        ]
+
+    response = requests.post(url, json=addresses)
+    parsed_addresses = response.json()
+    print(parsed_addresses)
 
 
 Retrain a Model With an Attention Mechanism
 *******************************************
-See `here <https://github.com/GRAAL-Research/deepparse/blob/master/examples/retrain_attention_model.py>`_ for a complete example.
+See `here <https://github.com/GRAAL-Research/deepparse/blob/main/examples/retrain_attention_model.py>`_ for a complete example.
 
 .. code-block:: python
 
     # We will retrain the fasttext version of our pretrained model.
     address_parser = AddressParser(model_type="fasttext", device=0, attention_mechanism=True)
 
-    address_parser.retrain(training_container, 0.8, epochs=5, batch_size=8)
+    address_parser.retrain(training_container, train_ratio=0.8, epochs=5, batch_size=8)
 
 
 Retrain a Model With New Tags
 *****************************
-See `here <https://github.com/GRAAL-Research/deepparse/blob/master/examples/retrain_with_new_prediction_tags.py>`_ for a complete example.
+See `here <https://github.com/GRAAL-Research/deepparse/blob/main/examples/retrain_with_new_prediction_tags.py>`_ for a complete example.
 
 .. code-block:: python
 
     address_components = {"ATag":0, "AnotherTag": 1, "EOS": 2}
-    address_parser.retrain(training_container, 0.8, epochs=1, batch_size=128, prediction_tags=address_components)
+    address_parser.retrain(training_container, train_ratio=0.8, epochs=1, batch_size=128, prediction_tags=address_components)
 
 
 Retrain a Seq2Seq Model From Scratch
 ************************************
 
-See  `here <https://github.com/GRAAL-Research/deepparse/blob/master/examples/retrain_with_new_seq2seq_params.py>`_ for
+See  `here <https://github.com/GRAAL-Research/deepparse/blob/main/examples/retrain_with_new_seq2seq_params.py>`_ for
 a complete example.
 
 .. code-block:: python
 
     seq2seq_params = {"encoder_hidden_size": 512, "decoder_hidden_size": 512}
-    address_parser.retrain(training_container, 0.8, epochs=1, batch_size=128, seq2seq_params=seq2seq_params)
+    address_parser.retrain(training_container, train_ratio=0.8, epochs=1, batch_size=128, seq2seq_params=seq2seq_params)
 
 
 Download Our Models
@@ -749,12 +809,12 @@ Contributing to Deepparse
 =========================
 
 We welcome user input, whether it is regarding bugs found in the library or feature propositions ! Make sure to have a
-look at our `contributing guidelines <https://github.com/GRAAL-Research/deepparse/blob/master/.github/CONTRIBUTING.md>`_ for more
+look at our `contributing guidelines <https://github.com/GRAAL-Research/deepparse/blob/main/.github/CONTRIBUTING.md>`_ for more
 details on this matter.
 
 License
-=======
-Deepparse is LGPLv3 licensed, as found in the `LICENSE file <https://github.com/GRAAL-Research/deepparse/blob/master/LICENSE>`_.
+========
+Deepparse is LGPLv3 licensed, as found in the `LICENSE file <https://github.com/GRAAL-Research/deepparse/blob/main/LICENSE>`_.
 
 
 API Reference
@@ -765,6 +825,7 @@ API Reference
   :caption: API
 
   parser
+  pre_processor
   dataset_container
   comparer
   cli
@@ -775,13 +836,16 @@ API Reference
   :caption: Examples
 
   examples/parse_addresses
+  examples/parse_addresses_uri
   examples/parse_addresses_with_cli
   examples/retrained_model_parsing
   examples/fine_tuning
+  examples/fine_tuning_uri
   examples/fine_tuning_with_csv_dataset
   examples/retrain_attention_model
   examples/retrain_with_new_prediction_tags
   examples/retrain_with_new_seq2seq_params
+  examples/single_country_retrain
 
 Indices and Tables
 ==================

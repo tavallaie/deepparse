@@ -7,13 +7,13 @@ from unittest import skipIf
 from unittest.mock import patch
 
 import pytest
-import torch
 
 from deepparse.cli import test, generate_export_path
 from tests.parser.base import PretrainedWeightsBase
 from tests.parser.integration.base_retrain import RetrainTestCase
 
 
+@skipIf(os.environ["TEST_LEVEL"] == "unit", "Cannot run for unit tests since download is too long.")
 class TestingTests(RetrainTestCase, PretrainedWeightsBase):
     @pytest.fixture(autouse=True)
     def inject_fixtures(self, caplog):
@@ -21,9 +21,15 @@ class TestingTests(RetrainTestCase, PretrainedWeightsBase):
 
     @classmethod
     def setUpClass(cls):
-        super(TestingTests, cls).setUpClass()
+        # Calling super does not seem to properly call each parent class setUpClass, thus
+        # the second setUpClass (PretrainedWeightsBase) is not call and make child setUpClass fail
+        # due to missing attribute.
+        # super(TestingTests, cls).setUpClass()
+        # This approach make it work by calling each setUpClass manually.
+        RetrainTestCase.setUpClass()
+        PretrainedWeightsBase.setUpClass()
 
-        cls.download_pre_trained_weights(cls)
+        cls.prepare_pre_trained_weights()
 
         cls.a_fasttext_model_type = "fasttext"
         cls.a_fasttext_att_model_type = "fasttext-attention"
@@ -42,10 +48,6 @@ class TestingTests(RetrainTestCase, PretrainedWeightsBase):
 
         cls.a_cache_dir = "a_cache_dir"
 
-    @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
-    )
     def test_integration_cpu(self):
         parser_params = [
             self.a_fasttext_model_type,
@@ -62,7 +64,6 @@ class TestingTests(RetrainTestCase, PretrainedWeightsBase):
 
         self.assertTrue(os.path.isfile(os.path.join(self.temp_dir_obj.name, "data", expected_file_path)))
 
-    @skipIf(not torch.cuda.is_available(), "no gpu available")
     def test_integration_gpu(self):
         parser_params = [
             self.a_fasttext_model_type,
@@ -79,10 +80,6 @@ class TestingTests(RetrainTestCase, PretrainedWeightsBase):
 
         self.assertTrue(os.path.isfile(os.path.join(self.temp_dir_obj.name, "data", expected_file_path)))
 
-    @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
-    )
     def test_integration_logging(self):
         with self._caplog.at_level(logging.INFO):
             parser_params = [
@@ -114,10 +111,6 @@ class TestingTests(RetrainTestCase, PretrainedWeightsBase):
         actual_second_message = self._caplog.records[1].message
         self.assertEqual(expected_second_message, actual_second_message)
 
-    @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
-    )
     def test_integration_no_logging(self):
         with self._caplog.at_level(logging.INFO):
             parser_params = [
@@ -133,7 +126,6 @@ class TestingTests(RetrainTestCase, PretrainedWeightsBase):
 
         self.assertEqual(0, len(self._caplog.records))
 
-    @skipIf(not torch.cuda.is_available(), "no gpu available")
     def test_integration_attention_model(self):
         parser_params = [
             self.a_fasttext_att_model_type,
@@ -150,10 +142,6 @@ class TestingTests(RetrainTestCase, PretrainedWeightsBase):
 
         self.assertTrue(os.path.isfile(os.path.join(self.temp_dir_obj.name, "data", expected_file_path)))
 
-    @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
-    )
     def test_integration_csv(self):
         parser_params = [
             self.a_fasttext_model_type,
@@ -175,10 +163,6 @@ class TestingTests(RetrainTestCase, PretrainedWeightsBase):
 
         self.assertTrue(os.path.isfile(os.path.join(self.temp_dir_obj.name, "data", expected_file_path)))
 
-    @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
-    )
     def test_ifIsCSVFile_noColumnName_raiseValueError(self):
         with self.assertRaises(ValueError):
             parser_params = [
@@ -190,10 +174,6 @@ class TestingTests(RetrainTestCase, PretrainedWeightsBase):
 
             test.main(parser_params)
 
-    @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
-    )
     def test_ifIsNotSupportedFile_raiseValueError(self):
         with self.assertRaises(ValueError):
             parser_params = [
@@ -205,20 +185,13 @@ class TestingTests(RetrainTestCase, PretrainedWeightsBase):
 
             test.main(parser_params)
 
-    @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
-    )
     def test_ifPathToFakeRetrainModel_thenUseFakeRetrainModel(self):
         with self._caplog.at_level(logging.INFO):
-            # We use the default path to fasttext model as a "retrain model path"
-            path_to_retrained_model = os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "fasttext.ckpt")
-
             parser_params = [
                 self.a_fasttext_model_type,
                 self.a_train_pickle_dataset_path,
                 "--path_to_retrained_model",
-                path_to_retrained_model,
+                self.path_to_retrain_fasttext,
                 "--device",
                 self.cpu_device,
             ]
@@ -245,10 +218,6 @@ class TestingTests(RetrainTestCase, PretrainedWeightsBase):
         actual_second_message = self._caplog.records[1].message
         self.assertEqual(expected_second_message, actual_second_message)
 
-    @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
-    )
     def test_ifPathToBPEmbRetrainModel_thenUseBPEmbRetrainModel(self):
         with self._caplog.at_level(logging.INFO):
             parser_params = [
@@ -282,10 +251,6 @@ class TestingTests(RetrainTestCase, PretrainedWeightsBase):
         actual_second_message = self._caplog.records[3].message
         self.assertEqual(expected_second_message, actual_second_message)
 
-    @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
-    )
     def test_ifCachePath_thenUseNewCachePath(self):
         with patch("deepparse.cli.test.AddressParser") as address_parser_mock:
             parser_params = [

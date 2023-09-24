@@ -1,5 +1,6 @@
-# pylint: disable=too-many-arguments
-from typing import Union
+# pylint: disable=too-many-arguments, duplicate-code, too-many-locals
+
+from typing import Union, List
 
 import torch
 
@@ -40,6 +41,7 @@ class FastTextSeq2SeqModel(Seq2SeqModel):
         verbose: bool = True,
         path_to_retrained_model: Union[str, None] = None,
         pre_trained_weights: bool = True,
+        offline: bool = False,
     ) -> None:
         super().__init__(
             device,
@@ -53,20 +55,29 @@ class FastTextSeq2SeqModel(Seq2SeqModel):
             verbose=verbose,
         )
 
+        model_weights_name = "fasttext"
+        if attention_mechanism:
+            model_weights_name += "_attention"
+
         if path_to_retrained_model is not None:
             self._load_weights(path_to_retrained_model)
+
+            version = "FineTunedModel" + self._load_version(model_type=model_weights_name, cache_dir=cache_dir)
         elif pre_trained_weights:
             # Means we use the pretrained weights
-            model_weights_name = "fasttext"
-            if attention_mechanism:
-                model_weights_name += "_attention"
-            self._load_pre_trained_weights(model_weights_name, cache_dir=cache_dir)
+            self._load_pre_trained_weights(model_weights_name, cache_dir=cache_dir, offline=offline)
+
+            version = self._load_version(model_type=model_weights_name, cache_dir=cache_dir)
+        else:
+            version = ""
+
+        self.version = version
 
     def forward(
         self,
         to_predict: torch.Tensor,
-        lengths_tensor: torch.Tensor,
-        target: Union[torch.Tensor, None] = None,
+        lengths: List,
+        target: Union[torch.LongTensor, None] = None,
     ) -> torch.Tensor:
         """
         Callable method as per PyTorch forward method to get tags prediction over the components of
@@ -74,8 +85,8 @@ class FastTextSeq2SeqModel(Seq2SeqModel):
 
         Args:
             to_predict (~torch.Tensor): The elements to predict the tags.
-            lengths_tensor (~torch.Tensor) : The lengths of the batch elements (since packed).
-            target (~torch.Tensor) : The target of the batch element, use only when we retrain the model since we do
+            lengths (list) : The lengths of the batch elements (since packed).
+            target (~torch.LongTensor) : The target of the batch element, use only when we retrain the model since we do
                 `teacher forcing <https://machinelearningmastery.com/teacher-forcing-for-recurrent-neural-networks/>`_.
                 Default value is None since we mostly don't have the target except for retrain.
 
@@ -84,14 +95,14 @@ class FastTextSeq2SeqModel(Seq2SeqModel):
         """
         batch_size = to_predict.size(0)
 
-        decoder_input, decoder_hidden, encoder_outputs = self._encoder_step(to_predict, lengths_tensor, batch_size)
+        decoder_input, decoder_hidden, encoder_outputs = self._encoder_step(to_predict, lengths, batch_size)
 
         prediction_sequence = self._decoder_step(
             decoder_input,
             decoder_hidden,
             encoder_outputs,
             target,
-            lengths_tensor,
+            lengths,
             batch_size,
         )
 

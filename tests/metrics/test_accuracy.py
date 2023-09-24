@@ -1,5 +1,6 @@
 # Bug with PyTorch source code makes torch.tensor as not callable for pylint.
 # pylint: disable=not-callable
+
 import unittest
 from unittest import TestCase
 

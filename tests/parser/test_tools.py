@@ -1,4 +1,9 @@
 # pylint: disable=too-many-public-methods
+
+# Pylint error for TemporaryDirectory ask for with statement
+# pylint: disable=consider-using-with
+
+
 import os
 import unittest
 from tempfile import TemporaryDirectory
@@ -17,16 +22,11 @@ from deepparse.parser.tools import (
     handle_model_name,
     infer_model_type,
 )
-from tests.base_capture_output import CaptureOutputTestCase
 from tests.parser.base import PretrainedWeightsBase
 from tests.tools import create_file
 
 
-class ToolsTests(CaptureOutputTestCase, PretrainedWeightsBase):
-    @classmethod
-    def setUpClass(cls):
-        cls.download_pre_trained_weights(cls)
-
+class ToolsTests(PretrainedWeightsBase):
     def setUp(self) -> None:
         self.a_seed = 42
         self.temp_dir_obj = TemporaryDirectory()
@@ -142,7 +142,7 @@ class ToolsTests(CaptureOutputTestCase, PretrainedWeightsBase):
 
         self.assertEqual(actual, expected)
 
-    @skipIf(not torch.cuda.is_available(), "no gpu available")
+    @skipIf(os.environ["TEST_LEVEL"] == "unit", "Cannot run test without a proper GPU or RAM.")
     def test_givenATupleToLoadOfTensorIntoDevice_whenLoad_thenProperlyLoad(self):
         a_device = torch.device("cuda:0")
         a_random_tensor = torch.rand(1, 2)
@@ -305,6 +305,27 @@ class ToolsTests(CaptureOutputTestCase, PretrainedWeightsBase):
                     expected_model_type += "_attention"
                 self.assertEqual(expected_model_type, actual_model_type)
 
+        # Retrained models no attention
+        retrain_model_type = "fasttext"
+        expected_model_type = "fasttext"
+        actual_model_type, _ = handle_model_name(retrain_model_type, attention_mechanism=False)
+        self.assertEqual(expected_model_type, actual_model_type)
+
+        retrain_model_type = "fasttext_attention"
+        expected_model_type = "fasttext_attention"
+        actual_model_type, _ = handle_model_name(retrain_model_type, attention_mechanism=True)
+        self.assertEqual(expected_model_type, actual_model_type)
+
+        retrain_model_type = "bpemb"
+        expected_model_type = "bpemb"
+        actual_model_type, _ = handle_model_name(retrain_model_type, attention_mechanism=False)
+        self.assertEqual(expected_model_type, actual_model_type)
+
+        retrain_model_type = "bpemb_attention"
+        expected_model_type = "bpemb_attention"
+        actual_model_type, _ = handle_model_name(retrain_model_type, attention_mechanism=True)
+        self.assertEqual(expected_model_type, actual_model_type)
+
     def test_givenModelTypes_whenHandleThem_then_ReturnProperFormattedModelType(self):
         # "Normal" Fasttext setup
         model_types = ["fasttext", "fastest"]
@@ -381,8 +402,8 @@ class ToolsTests(CaptureOutputTestCase, PretrainedWeightsBase):
             self.assertEqual(actual_error_message.args[0], expect_error_message)
 
     @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
+        os.environ["TEST_LEVEL"] == "unit",
+        "Cannot run for unit tests since download is too long.",
     )
     def test_givenAModelTypeToInfer_whenNotRealRetrainFastText_thenReturnFasttext(self):
         path_to_retrained_model = os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "fasttext.ckpt")
@@ -400,8 +421,8 @@ class ToolsTests(CaptureOutputTestCase, PretrainedWeightsBase):
         self.assertEqual(expected_attention_mechanism, actual_inferred_attention_mechanism)
 
     @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
+        os.environ["TEST_LEVEL"] == "unit",
+        "Cannot run for unit tests since download is too long.",
     )
     def test_givenAModelTypeToInfer_whenNotRealRetrainFastTextAttention_thenReturnAttention(self):
         path_to_retrained_model = os.path.join(
@@ -421,8 +442,8 @@ class ToolsTests(CaptureOutputTestCase, PretrainedWeightsBase):
         self.assertEqual(expected_attention_mechanism, actual_inferred_attention_mechanism)
 
     @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
+        os.environ["TEST_LEVEL"] == "unit",
+        "Cannot run for unit tests since download is too long.",
     )
     def test_givenAModelTypeToInfer_whenNotRealRetrainBPEmb_thenReturnBPEmb(self):
         path_to_retrained_model = os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "bpemb.ckpt")
@@ -440,8 +461,8 @@ class ToolsTests(CaptureOutputTestCase, PretrainedWeightsBase):
         self.assertEqual(expected_attention_mechanism, actual_inferred_attention_mechanism)
 
     @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
+        os.environ["TEST_LEVEL"] == "unit",
+        "Cannot run for unit tests since download is too long.",
     )
     def test_givenAModelTypeToInfer_whenNotRealRetrainBPEmbAttention_thenReturnAttention(self):
         path_to_retrained_model = os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "bpemb_attention.ckpt")
@@ -459,10 +480,12 @@ class ToolsTests(CaptureOutputTestCase, PretrainedWeightsBase):
         self.assertEqual(expected_attention_mechanism, actual_inferred_attention_mechanism)
 
     @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
+        os.environ["TEST_LEVEL"] == "unit",
+        "Cannot run for unit tests since download is too long.",
     )
     def test_givenAModelTypeToInfer_whenRealRetrainFastText_thenReturnFastText(self):
+        self.prepare_pre_trained_weights()
+
         path_to_retrained_model = self.path_to_retrain_fasttext
         checkpoint_weights = torch.load(path_to_retrained_model, map_location="cpu")
         attention_mechanism = False
@@ -474,10 +497,12 @@ class ToolsTests(CaptureOutputTestCase, PretrainedWeightsBase):
         self.assertEqual(expected_inferred_model_type, actual_inferred_model_type)
 
     @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
+        os.environ["TEST_LEVEL"] == "unit",
+        "Cannot run for unit tests since download is too long.",
     )
     def test_givenAModelTypeToInfer_whenRealRetrainBPEmb_thenReturnBPEmb(self):
+        self.prepare_pre_trained_weights()
+
         path_to_retrained_model = self.path_to_retrain_bpemb
         checkpoint_weights = torch.load(path_to_retrained_model, map_location="cpu")
         attention_mechanism = False

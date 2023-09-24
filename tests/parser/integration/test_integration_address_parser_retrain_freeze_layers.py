@@ -9,10 +9,7 @@ from deepparse.parser import AddressParser
 from tests.parser.integration.base_retrain import AddressParserRetrainTestCase
 
 
-@skipIf(
-    not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-    "download of model too long for test in runner",
-)
+@skipIf(os.environ["TEST_LEVEL"] == "unit", "Cannot run test without a proper GPU or RAM.")
 class AddressParserIntegrationTestFreezeLayers(AddressParserRetrainTestCase):
     def assert_layer_frozen(self, model_part):
         # A frozen layer does not requires grad
@@ -32,7 +29,7 @@ class AddressParserIntegrationTestFreezeLayers(AddressParserRetrainTestCase):
         )
         address_parser.retrain(
             self.training_container,
-            self.a_train_ratio,
+            train_ratio=self.a_train_ratio,
             epochs=self.a_single_epoch,
             batch_size=self.a_batch_size,
             num_workers=self.a_number_of_workers,
@@ -52,7 +49,7 @@ class AddressParserIntegrationTestFreezeLayers(AddressParserRetrainTestCase):
         )
         address_parser.retrain(
             self.training_container,
-            self.a_train_ratio,
+            train_ratio=self.a_train_ratio,
             epochs=self.a_single_epoch,
             batch_size=self.a_batch_size,
             num_workers=self.a_number_of_workers,
@@ -72,7 +69,7 @@ class AddressParserIntegrationTestFreezeLayers(AddressParserRetrainTestCase):
         )
         address_parser.retrain(
             self.training_container,
-            self.a_train_ratio,
+            train_ratio=self.a_train_ratio,
             epochs=self.a_single_epoch,
             batch_size=self.a_batch_size,
             num_workers=self.a_number_of_workers,
@@ -90,7 +87,7 @@ class AddressParserIntegrationTestFreezeLayers(AddressParserRetrainTestCase):
         )
         address_parser.retrain(
             self.training_container,
-            self.a_train_ratio,
+            train_ratio=self.a_train_ratio,
             epochs=self.a_single_epoch,
             batch_size=self.a_batch_size,
             num_workers=self.a_number_of_workers,
@@ -110,7 +107,7 @@ class AddressParserIntegrationTestFreezeLayers(AddressParserRetrainTestCase):
         )
         address_parser.retrain(
             self.training_container,
-            self.a_train_ratio,
+            train_ratio=self.a_train_ratio,
             epochs=self.a_single_epoch,
             batch_size=self.a_batch_size,
             num_workers=self.a_number_of_workers,
@@ -128,7 +125,7 @@ class AddressParserIntegrationTestFreezeLayers(AddressParserRetrainTestCase):
         )
         address_parser.retrain(
             self.training_container,
-            self.a_train_ratio,
+            train_ratio=self.a_train_ratio,
             epochs=self.a_single_epoch,
             batch_size=self.a_batch_size,
             num_workers=self.a_number_of_workers,

@@ -1,6 +1,7 @@
 # Bug with PyTorch source code makes torch.tensor as not callable for pylint.
 # We also skip protected-access since we test the encoder and decoder step
 # pylint: disable=not-callable, protected-access
+
 import os
 import unittest
 from unittest import skipIf
@@ -8,15 +9,18 @@ from unittest.mock import patch
 
 import torch
 
+from deepparse import CACHE_PATH
 from deepparse.network import Seq2SeqModel
 from ..integration.base import Seq2SeqIntegrationTestCase
 
 
-@skipIf(
-    not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-    "download of model too long for test in runner",
-)
-class Seq2SeqIntegrationTest(Seq2SeqIntegrationTestCase):
+@skipIf(os.environ["TEST_LEVEL"] == "unit", "Cannot run test without a proper GPU or RAM.")
+class Seq2SeqCPUIntegrationTest(Seq2SeqIntegrationTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super(Seq2SeqCPUIntegrationTest, cls).setUpClass()
+        cls.a_cpu_device = torch.device("cpu")
+
     def setUp(self) -> None:
         super().setUp()
         self.pre_trained_seq2seq_model = Seq2SeqModel(
@@ -39,9 +43,11 @@ class Seq2SeqIntegrationTest(Seq2SeqIntegrationTestCase):
     def test_whenEncoderStep_thenEncoderStepIsOk(self):
         # encoding for two address: "["15 major st london ontario n5z1e1", "15 major st london ontario n5z1e1"]"
 
-        (decoder_input, decoder_hidden, encoder_outputs,) = self.pre_trained_seq2seq_model._encoder_step(
-            self.to_predict_tensor, self.a_lengths_tensor, self.a_batch_size
-        )
+        (
+            decoder_input,
+            decoder_hidden,
+            encoder_outputs,
+        ) = self.pre_trained_seq2seq_model._encoder_step(self.to_predict_tensor, self.a_lengths_list, self.a_batch_size)
 
         self.assertEqual(decoder_input.shape[1], self.a_batch_size)
         self.assertTrue(decoder_input[0][0] == self.begin_of_sequence_idx)
@@ -67,7 +73,7 @@ class Seq2SeqIntegrationTest(Seq2SeqIntegrationTestCase):
             self.decoder_hidden_tensor,
             self.encoder_hidden,
             self.none_target,
-            self.a_lengths_tensor,
+            self.a_lengths_list,
             self.a_batch_size,
         )
 
@@ -83,7 +89,7 @@ class Seq2SeqIntegrationTest(Seq2SeqIntegrationTestCase):
             self.decoder_hidden_tensor,
             self.encoder_hidden,
             self.a_target_vector,
-            self.a_lengths_tensor,
+            self.a_lengths_list,
             self.a_batch_size,
         )
 
@@ -102,7 +108,7 @@ class Seq2SeqIntegrationTest(Seq2SeqIntegrationTestCase):
             self.decoder_hidden_tensor,
             self.encoder_hidden,
             self.a_target_vector,
-            self.a_lengths_tensor,
+            self.a_lengths_list,
             self.a_batch_size,
         )
 
@@ -121,11 +127,22 @@ class Seq2SeqIntegrationTest(Seq2SeqIntegrationTestCase):
             self.decoder_hidden_tensor,
             self.encoder_hidden,
             self.none_target,
-            self.a_lengths_tensor,
+            self.a_lengths_list,
             self.a_batch_size,
         )
 
         random_mock.assert_not_called()
+
+    @patch("deepparse.network.seq2seq.download_weights")
+    def test_givenAnOfflineSeq2SeqModel_whenInit_thenDontCallDownloadWeights(self, download_weights_mock):
+        # Test if functions latest_version and download_weights
+
+        a_model_type = "fasttext"
+
+        default_cache = CACHE_PATH
+        self.pre_trained_seq2seq_model._load_pre_trained_weights(a_model_type, cache_dir=default_cache, offline=True)
+
+        download_weights_mock.assert_not_called()
 
 
 if __name__ == "__main__":

@@ -1,16 +1,25 @@
 import argparse
+import json
 import sys
 from typing import Dict
 
-from deepparse.cli.tools import (
-    is_csv_path,
-    is_pickle_path,
+from .parser_arguments_adder import (
+    add_seed_arg,
+    add_batch_size_arg,
+    add_base_parsing_model_arg,
+    add_num_workers_arg,
+    add_device_arg,
+    add_csv_column_separator_arg,
+    add_cache_dir_arg,
+    add_csv_column_names_arg,
+)
+from .tools import (
     wrap,
     bool_parse,
     attention_model_type_handling,
+    data_container_factory,
 )
-from deepparse.dataset_container import CSVDatasetContainer, PickleDatasetContainer
-from deepparse.parser import AddressParser
+from ..parser import AddressParser
 
 _retrain_parameters = [
     "train_ratio",
@@ -35,6 +44,21 @@ def parse_retrained_arguments(parsed_args) -> Dict:
         parsed_retain_arguments.update({retrain_parameter: value})
 
     return parsed_retain_arguments
+
+
+def handle_prediction_tags(parsed_args):
+    dict_parsed_args = vars(parsed_args)
+    path = dict_parsed_args.get("prediction_tags")
+
+    tags_dict_arguments = {"prediction_tags": None}  # Default case
+
+    if path is not None:
+        with open(path, "r", encoding="UTF-8") as file:
+            prediction_tags = json.load(file)
+            if "EOS" not in prediction_tags.keys():
+                raise ValueError("The prediction tags dictionary is missing the EOS tag.")
+            tags_dict_arguments.update({"prediction_tags": prediction_tags})
+    return tags_dict_arguments
 
 
 def main(args=None) -> None:
@@ -80,25 +104,21 @@ def main(args=None) -> None:
 
     parsed_args = get_args(args)
 
-    train_dataset_path = parsed_args.train_dataset_path
-    if is_csv_path(train_dataset_path):
-        csv_column_names = parsed_args.csv_column_names
-        if csv_column_names is None:
-            raise ValueError(
-                "To use a CSV dataset to retrain on, you need to specify the 'csv_column_names' argument to provide the"
-                " column names to extract address and labels (respectively). For example, Address Tags."
-            )
-        csv_column_separator = parsed_args.csv_column_separator
-        training_data = CSVDatasetContainer(
-            train_dataset_path,
-            column_names=csv_column_names,
-            separator=csv_column_separator,
-            is_training_container=True,
+    training_data = data_container_factory(
+        dataset_path=parsed_args.train_dataset_path,
+        trainable_dataset=True,
+        csv_column_separator=parsed_args.csv_column_separator,
+        csv_column_names=parsed_args.csv_column_names,
+    )
+
+    val_data = parsed_args.val_dataset_path
+    if val_data is not None:
+        val_data = data_container_factory(
+            dataset_path=parsed_args.val_dataset_path,
+            trainable_dataset=True,
+            csv_column_separator=parsed_args.csv_column_separator,
+            csv_column_names=parsed_args.csv_column_names,
         )
-    elif is_pickle_path(train_dataset_path):
-        training_data = PickleDatasetContainer(train_dataset_path, is_training_container=True)
-    else:
-        raise ValueError("The train dataset path argument is not a CSV or a pickle file.")
 
     base_parsing_model = parsed_args.base_parsing_model
     device = parsed_args.device
@@ -111,31 +131,39 @@ def main(args=None) -> None:
 
     address_parser = AddressParser(**parser_args)
 
+    new_tags_parser_args_update_args = handle_prediction_tags(parsed_args)
+    parser_args.update(**new_tags_parser_args_update_args)
+
     parsed_retain_arguments = parse_retrained_arguments(parsed_args)
 
-    address_parser.retrain(dataset_container=training_data, **parsed_retain_arguments)
+    address_parser.retrain(
+        train_dataset_container=training_data, val_dataset_container=val_data, **parsed_retain_arguments
+    )
 
 
 def get_parser() -> argparse.ArgumentParser:
     """Return ArgumentParser for the cli."""
 
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument(
-        "base_parsing_model",
-        choices=[
-            "fasttext",
-            "fasttext-attention",
-            "fasttext-light",
-            "bpemb",
-            "bpemb-attention",
-        ],
-        help=wrap("The base parsing module to use for retraining."),
-    )
+
+    add_base_parsing_model_arg(parser)
 
     parser.add_argument(
         "train_dataset_path",
         help=wrap("The path to the dataset file in a pickle (.p, .pickle or .pckl) or CSV format."),
         type=str,
+    )
+
+    parser.add_argument(
+        "--val_dataset_path",
+        help=wrap(
+            "The path to the validation dataset file in a pickle (.p, .pickle or .pckl) or CSV format. "
+            "If the dataset are CSV, both train and val must have the same CSV formatting "
+            "(columns names). If not provided, the train dataset will be split in a train and val "
+            "dataset (default is None)."
+        ),
+        type=str,
+        default=None,
     )
 
     parser.add_argument(
@@ -148,12 +176,7 @@ def get_parser() -> argparse.ArgumentParser:
         default=0.8,
     )
 
-    parser.add_argument(
-        "--batch_size",
-        help=wrap("The size of the batch (default is 32)."),
-        type=int,
-        default=32,
-    )
+    add_batch_size_arg(parser)
 
     parser.add_argument(
         "--epochs",
@@ -162,25 +185,13 @@ def get_parser() -> argparse.ArgumentParser:
         default=5,
     )
 
-    parser.add_argument(
-        "--num_workers",
-        help=wrap("The number of workers to use for the data loader (default is 1 worker)."),
-        type=int,
-        default=1,
-    )
+    add_num_workers_arg(parser)
 
     parser.add_argument(
         "--learning_rate",
         help=wrap("The learning rate (LR) to use for training (default 0.01)."),
         type=float,
         default=0.01,
-    )
-
-    parser.add_argument(
-        "--seed",
-        help=wrap("The seed to use (default 42)."),
-        type=int,
-        default=42,
     )
 
     parser.add_argument(
@@ -225,41 +236,26 @@ def get_parser() -> argparse.ArgumentParser:
         default=None,
         type=str,
     )
-
     parser.add_argument(
-        "--device",
-        help=wrap("The device to use. It can be 'cpu' or a GPU device index such as '0' or '1'. By default, '0'."),
-        type=str,
-        default="0",
-    )
-
-    parser.add_argument(
-        "--csv_column_names",
+        "--prediction_tags",
         help=wrap(
-            "The column names to extract address and tags in the CSV. Need to be specified if the provided "
-            "dataset_path leads to a CSV file. Column names have to be separated by a whitespace. For"
-            "example, --csv_column_names column1 column2. By default, None."
+            "Path to a JSON file of prediction tags to use to retrain. Tags are in a key-value style, where "
+            "the key is the tag name, and the value is the index one."
+            "The last element has to be an EOS tag. Read the doc for more detail about EOS tag."
         ),
         default=None,
-        nargs=2,
         type=str,
     )
 
-    parser.add_argument(
-        "--csv_column_separator",
-        help=wrap(
-            "The column separator for the dataset container will only be used if the dataset is a CSV one."
-            " By default, '\t'."
-        ),
-        default="\t",
-    )
+    add_seed_arg(parser)
 
-    parser.add_argument(
-        "--cache_dir",
-        type=str,
-        default=None,
-        help="To change the default cache directory (default to None e.g. default path).",
-    )
+    add_device_arg(parser)
+
+    add_csv_column_names_arg(parser)
+
+    add_csv_column_separator_arg(parser)
+
+    add_cache_dir_arg(parser)
 
     return parser
 

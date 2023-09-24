@@ -1,5 +1,9 @@
 # Bug with PyTorch source code makes torch.tensor as not callable for pylint.
 # pylint: disable=not-callable
+
+# Pylint error for TemporaryDirectory ask for with statement
+# pylint: disable=consider-using-with
+
 import os
 import pickle
 import unittest
@@ -46,7 +50,7 @@ class DecoderCase(TestCase):
 
     def decoder_input_setUp(self, device: torch.device):
         self.decoder_input = torch.tensor([[[-1], [-1]]], device=device)
-        self.a_lengths_tensor = torch.tensor(([self.sequence_len, self.sequence_len]), device="cpu")
+        self.a_lengths_list = [self.sequence_len, self.sequence_len]
 
         with open(os.path.join(self.weights_dir, "decoder_hidden.p"), "rb") as file:
             self.decoder_hidden_tensor = pickle.load(file)
@@ -67,7 +71,7 @@ class DecoderCase(TestCase):
             self.assertEqual(self.hidden_size, actual_prediction.shape[2])
 
 
-@skipIf(not torch.cuda.is_available(), "no gpu available")
+@skipIf(os.environ["TEST_LEVEL"] == "unit", "Cannot run test without a proper GPU or RAM.")
 class DecoderGPUTest(DecoderCase):
     def test_whenForwardStepGPU_thenStepIsOk(self):
         output_size = 9
@@ -76,7 +80,7 @@ class DecoderGPUTest(DecoderCase):
             self.decoder_input,
             self.decoder_hidden_tensor,
             self.decoder_output,
-            self.a_lengths_tensor,
+            self.a_lengths_list,
         )
 
         self.assert_predictions_is_valid_dim(predictions, output_size)
@@ -90,7 +94,7 @@ class DecoderGPUTest(DecoderCase):
             self.decoder_input,
             self.decoder_hidden_tensor,
             self.decoder_output,
-            self.a_lengths_tensor,
+            self.a_lengths_list,
         )
 
         self.assert_predictions_is_valid_dim(predictions, output_size)
@@ -104,7 +108,7 @@ class DecoderGPUTest(DecoderCase):
             self.decoder_input,
             self.decoder_hidden_tensor,
             self.decoder_output,
-            self.a_lengths_tensor,
+            self.a_lengths_list,
         )
 
         self.assert_predictions_is_valid_dim(predictions, output_size)
@@ -120,7 +124,7 @@ class DecoderCPUTest(DecoderCase):
             self.decoder_input,
             self.decoder_hidden_tensor,
             self.decoder_output,
-            self.a_lengths_tensor,
+            self.a_lengths_list,
         )
 
         self.assert_predictions_is_valid_dim(predictions, output_size)
@@ -134,7 +138,7 @@ class DecoderCPUTest(DecoderCase):
             self.decoder_input,
             self.decoder_hidden_tensor,
             self.decoder_output,
-            self.a_lengths_tensor,
+            self.a_lengths_list,
         )
 
         self.assert_predictions_is_valid_dim(predictions, output_size)
@@ -148,7 +152,7 @@ class DecoderCPUTest(DecoderCase):
             self.decoder_input,
             self.decoder_hidden_tensor,
             self.decoder_output,
-            self.a_lengths_tensor,
+            self.a_lengths_list,
         )
 
         self.assert_predictions_is_valid_dim(predictions, output_size)

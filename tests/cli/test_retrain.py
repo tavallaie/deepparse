@@ -1,5 +1,5 @@
 # pylint: disable=too-many-arguments, too-many-locals
-
+import json
 import os
 import unittest
 from tempfile import TemporaryDirectory
@@ -7,15 +7,35 @@ from typing import List
 from unittest import skipIf
 from unittest.mock import patch
 
+import pytest
+
 from deepparse.cli import retrain
 from deepparse.cli.retrain import get_args, parse_retrained_arguments
 from tests.parser.integration.base_retrain import RetrainTestCase
 
+# Pylint error for TemporaryDirectory ask for with statement
+# pylint: disable=consider-using-with
 
-@skipIf(
-    not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-    "download of model too long for test in runner",
-)
+_new_tag_set = {
+    "primary": 0,
+    "pre": 1,
+    "street": 2,
+    "suffix": 3,
+    "post": 4,
+    "secdes": 5,
+    "secnum": 6,
+    "extsecdes": 7,
+    "extsecnum": 8,
+    "pmbdes": 9,
+    "pmbnum": 10,
+    "city": 11,
+    "state": 12,
+    "zipcode": 13,
+    "EOS": 14,
+}
+
+
+@skipIf(os.environ["TEST_LEVEL"] == "unit", "Cannot run for unit tests since download is too long.")
 class RetrainTests(RetrainTestCase):
     @classmethod
     def setUpClass(cls):
@@ -43,6 +63,11 @@ class RetrainTests(RetrainTestCase):
         # temp directory
         self.logging_path = os.path.join(self.temp_checkpoints_obj.name, "checkpoints")
 
+        self.path_to_new_tags_set = os.path.join(self.temp_checkpoints_obj.name, "a_new_tag_set.json")
+
+        with open(self.path_to_new_tags_set, "w", encoding="UTF-8") as file:
+            json.dump(_new_tag_set, file, ensure_ascii=False)
+
     def tearDown(self) -> None:
         self.temp_checkpoints_obj.cleanup()
 
@@ -50,6 +75,7 @@ class RetrainTests(RetrainTestCase):
         self,
         model_type=None,  # None to handle the default tests case.
         train_dataset_path=None,  # None to handle the default tests case.
+        val_dataset_path=None,
         train_ratio="0.8",
         batch_size="32",
         epochs="1",  # As opposed to default CLI function, we set the epoch value number to 1,
@@ -64,6 +90,7 @@ class RetrainTests(RetrainTestCase):
         device="cpu",  # By default, we set it to cpu instead of gpu device 0 as the CLI function.
         csv_column_names: List = None,
         csv_column_separator="\t",
+        prediction_tags=None,  # By default, we do not set a new tags set
     ) -> List:
         if model_type is None:
             # The default case for the test is a FastText model
@@ -102,6 +129,10 @@ class RetrainTests(RetrainTestCase):
             csv_column_separator,
         ]
 
+        if val_dataset_path is not None:
+            # To handle the None case (that is using the default None of the argparser).
+            parser_params.extend(["--val_dataset_path", val_dataset_path])
+
         if cache_dir is not None:
             # To handle the None case (that is using the default None of the argparser).
             parser_params.extend(["--cache_dir", cache_dir])
@@ -111,8 +142,13 @@ class RetrainTests(RetrainTestCase):
             parser_params.extend(["--name_of_the_retrain_parser", name_of_the_retrain_parser])
 
         if csv_column_names is not None:
+            # To handle the None case (that is using the default None of the argparser).
             parser_params.extend(["--csv_column_names"])
             parser_params.extend(csv_column_names)  # Since csv_column_names is a list
+
+        if prediction_tags is not None:
+            # To handle the None case (that is using the default None of the argparser).
+            parser_params.extend(["--prediction_tags", prediction_tags])
 
         return parser_params
 
@@ -149,7 +185,11 @@ class RetrainTests(RetrainTestCase):
         )
 
     def test_integration_csv(self):
-        parser_params = self.set_up_params(csv_column_names=["Address", "Tags"], csv_column_separator=",")
+        parser_params = self.set_up_params(
+            train_dataset_path=self.a_train_csv_dataset_path,
+            csv_column_names=["Address", "Tags"],
+            csv_column_separator=",",
+        )
 
         retrain.main(parser_params)
 
@@ -256,6 +296,33 @@ class RetrainTests(RetrainTestCase):
             address_parser_mock.assert_called_with(
                 device=self.cpu_device, cache_dir=self.a_cache_dir, model_type=self.a_fasttext_model_type
             )  # Default tests case default model type is the FastText model
+
+    def test_integrationWithValDataset(self):
+        parser_params = self.set_up_params(device=self.cpu_device, val_dataset_path=self.a_train_pickle_dataset_path)
+        retrain.main(parser_params)
+
+        self.assertTrue(
+            os.path.isfile(
+                os.path.join(self.temp_checkpoints_obj.name, "checkpoints", "retrained_fasttext_address_parser.ckpt")
+            )
+        )
+
+    def test_integrationWithNewTagsSet(self):
+        parser_params = self.set_up_params(prediction_tags=self.path_to_new_tags_set)
+
+        retrain.main(parser_params)
+
+        self.assertTrue(
+            os.path.isfile(
+                os.path.join(self.temp_checkpoints_obj.name, "checkpoints", "retrained_fasttext_address_parser.ckpt")
+            )
+        )
+
+    def test_retrainWithWrongModelName(self):
+        with pytest.raises(SystemExit):
+            parser_params = self.set_up_params(model_type="wrong_model_name")
+
+            retrain.main(parser_params)
 
 
 if __name__ == "__main__":

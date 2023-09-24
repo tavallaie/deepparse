@@ -1,13 +1,24 @@
 <div align="center">
-<img src="https://raw.githubusercontent.com/GRAAL-Research/deepparse/master/docs/source/_static/logos/deepparse.png" width="220" height="91"/>
+<img src="https://raw.githubusercontent.com/GRAAL-Research/deepparse/main/docs/source/_static/logos/deepparse.png" width="220" height="91"/>
 
 
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/deepparse)](https://pypi.org/project/deepparse)
 [![PyPI Status](https://badge.fury.io/py/deepparse.svg)](https://badge.fury.io/py/deepparse)
 [![PyPI Status](https://pepy.tech/badge/deepparse)](https://pepy.tech/project/deepparse)
+[![Downloads](https://pepy.tech/badge/deepparse/month)](https://pepy.tech/project/deepparse)
+
+[![Formatting](https://github.com/GRAAL-Research/deepparse/actions/workflows/formatting.yml/badge.svg?branch=stable)](https://github.com/GRAAL-Research/deepparse/actions/workflows/formatting.yml)
+[![Linting](https://github.com/GRAAL-Research/deepparse/actions/workflows/linting.yml/badge.svg?branch=stable)](https://github.com/GRAAL-Research/deepparse/actions/workflows/linting.yml)
+[![Tests](https://github.com/GRAAL-Research/deepparse/actions/workflows/tests.yml/badge.svg?branch=stable)](https://github.com/GRAAL-Research/deepparse/actions/workflows/tests.yml)
+[![Docs](https://github.com/GRAAL-Research/deepparse/actions/workflows/docs.yml/badge.svg?branch=stable)](https://github.com/GRAAL-Research/deepparse/actions/workflows/docs.yml)
+
+[![codecov](https://codecov.io/gh/GRAAL-Research/deepparse/branch/main/graph/badge.svg)](https://codecov.io/gh/GRAAL-Research/deepparse)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/62464699ff0740d0b8064227c4274b98)](https://www.codacy.com/gh/GRAAL-Research/deepparse/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=GRAAL-Research/deepparse&amp;utm_campaign=Badge_Grade)
+<a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
+
+[![pr welcome](https://img.shields.io/badge/PR-Welcome-%23FF8300.svg?)](https://img.shields.io/badge/PR-Welcome-%23FF8300.svg?)
 [![License: LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](http://www.gnu.org/licenses/lgpl-3.0)
-[![Continuous Integration](https://github.com/GRAAL-Research/deepparse/workflows/Continuous%20Integration/badge.svg)](https://github.com/GRAAL-Research/deepparse/actions?query=workflow%3A%22Continuous+Integration%22+branch%3Amaster)
-[![codecov](https://codecov.io/gh/GRAAL-Research/deepparse/branch/master/graph/badge.svg)](https://codecov.io/gh/GRAAL-Research/deepparse)
+[![DOI](https://zenodo.org/badge/276474742.svg)](https://zenodo.org/badge/latestdoi/276474742)
 
 [![Download](https://img.shields.io/badge/Download%20Dataset-blue?style=for-the-badge&logo=download)](https://github.com/GRAAL-Research/deepparse-address-data)
 
@@ -22,6 +33,7 @@ Use deepparse to
 
 - parse multinational address using one of our pretrained models with or without attention mechanism,
 - parse addresses directly from the command line without code to write,
+- parse addresses with our out-of-the-box FastAPI parser,
 - retrain our pretrained models on new data to improve parsing on specific country address patterns,
 - retrain our pretrained models with new prediction tags easily,
 - retrain our pretrained models with or without freezing some layers,
@@ -29,7 +41,7 @@ Use deepparse to
 
 Read the documentation at [deepparse.org](https://deepparse.org).
 
-Deepparse is compatible with the __latest version of PyTorch__ and  __Python >= 3.7__.
+Deepparse is compatible with the __latest version of PyTorch__ and  __Python >= 3.8__.
 
 ### Countries and Results
 
@@ -145,121 +157,217 @@ parsed_address = address_parser("350 rue des Lilas Ouest Québec Québec G1L 1B6
 
 # or multiple addresses
 parsed_address = address_parser(
-    ["350 rue des Lilas Ouest Québec Québec G1L 1B6",
-     "350 rue des Lilas Ouest Québec Québec G1L 1B6"])
+    [
+        "350 rue des Lilas Ouest Québec Québec G1L 1B6",
+        "350 rue des Lilas Ouest Québec Québec G1L 1B6",
+    ]
+)
 
 # or multinational addresses
 # Canada, US, Germany, UK and South Korea
 parsed_address = address_parser(
-    ["350 rue des Lilas Ouest Québec Québec G1L 1B6", "777 Brockton Avenue, Abington MA 2351",
-     "Ansgarstr. 4, Wallenhorst, 49134", "221 B Baker Street", "서울특별시 종로구 사직로3길 23"])
+    [
+        "350 rue des Lilas Ouest Québec Québec G1L 1B6",
+        "777 Brockton Avenue, Abington MA 2351",
+        "Ansgarstr. 4, Wallenhorst, 49134",
+        "221 B Baker Street",
+        "서울특별시 종로구 사직로3길 23",
+    ]
+)
 
 # you can also get the probability of the predicted tags
-parsed_address = address_parser("350 rue des Lilas Ouest Québec Québec G1L 1B6",
-                                with_prob=True)
+parsed_address = address_parser(
+    "350 rue des Lilas Ouest Québec Québec G1L 1B6", with_prob=True
+)
 
 # Print the parsed address
 print(parsed_address)
 
 # or using one of our dataset container
-addresses_to_parse = CSVDatasetContainer("./a_path.csv", column_names=["address_column_name"],
-                                         is_training_container=False)
+addresses_to_parse = CSVDatasetContainer(
+    "./a_path.csv", column_names=["address_column_name"], is_training_container=False
+)
 address_parser(addresses_to_parse)
 ```
 
 The default predictions tags are the following
 
-- "StreetNumber": for the street number,
-- "StreetName": for the name of the street,
-- "Unit": for the unit (such as apartment),
-- "Municipality": for the municipality,
-- "Province": for the province or local region,
-- "PostalCode": for the postal code,
-- "Orientation": for the street orientation (e.g. west, east),
-- "GeneralDelivery": for other delivery information.
+- `"StreetNumber"`: for the street number,
+- `"StreetName"`: for the name of the street,
+- `"Unit"`: for the unit (such as apartment),
+- `"Municipality"`: for the municipality,
+- `"Province"`: for the province or local region,
+- `"PostalCode"`: for the postal code,
+- `"Orientation"`: for the street orientation (e.g. west, east),
+- `"GeneralDelivery"`: for other delivery information.
 
 ### Parse Addresses From the Command Line
 
 You can also use our cli to parse addresses using:
 
 ```sh
-
-    parse <parsing_model> <dataset_path> <export_file_name>
+parse <parsing_model> <dataset_path> <export_file_name>
 ```
 
 ### Parse Addresses Using Your Own Retrained Model
 
-> See [here](https://github.com/GRAAL-Research/deepparse/blob/master/examples/retrained_model_parsing.py) for a complete example.
+> See [here](https://github.com/GRAAL-Research/deepparse/blob/main/examples/retrained_model_parsing.py) for a complete
+> example.
 
 ```python
 address_parser = AddressParser(
-    model_type="bpemb", device=0, path_to_retrained_model="path/to/retrained/bpemb/model.p")
+    model_type="bpemb",
+    device=0,
+    path_to_retrained_model="path/to/retrained/bpemb/model.p",
+)
 
 address_parser("350 rue des Lilas Ouest Québec Québec G1L 1B6")
 ```
 
+### Parse Address With Our Out-Of-The-Box FastAPI Parse Model
+
+You can use Out-Of-The-Box RESTAPI to parse addresses:
+
+#### Installation:
+
+First, ensure that you have Docker Engine and Docker Compose installed on your machine.
+if not, you can install them using the following documentations in the following order:
+
+1. [Docker Engine](https://docs.docker.com/engine/install/)
+2. [Docker Compose](https://docs.docker.com/compose/install/linux/#install-using-the-repository)
+
+
+
+Once you have Docker Engine and Docker Compose installed, you can run the following command to start the FastAPI application:
+
+```sh
+docker compose up app
+```
+
+#### Sentry:
+Also, you can monitor your application usage with [Sentry](https://sentry.io) by setting the environment variable `SENTRY_DSN` to your Sentry's project
+DSN. There is an example of the .env file in the project's root named `.env_example`. You can copy it using the following command: 
+
+```sh
+cp .env_example .env
+```
+#### Request Examples:
+
+Once the application is up and running and port 8000 is exported on your localhost, you can send a request with one
+of the following methods:
+
+##### cURL POST request:
+```sh
+curl -X POST --location "http://127.0.0.1:8000/parse/bpemb-attention" --http1.1 \
+    -H "Host: 127.0.0.1:8000" \
+    -H "Content-Type: application/json" \
+    -d "[
+          {\"raw\": \"350 rue des Lilas Ouest Quebec city Quebec G1L 1B6\"},
+          {\"raw\": \"2325 Rue de l'Université, Québec, QC G1V 0A6\"}
+        ]"
+```
+
+#####  Python POST request:
+
+```python
+import requests
+
+url = 'http://localhost:8000/parse/bpemb'
+addresses = [
+    {"raw": "350 rue des Lilas Ouest Quebec city Quebec G1L 1B6"},
+    {"raw": "2325 Rue de l'Université, Québec, QC G1V 0A6"}
+    ]
+
+response = requests.post(url, json=addresses)
+parsed_addresses = response.json()
+print(parsed_addresses)
+```
+
+
+
 ### Retrain a Model
 
-> See [here](https://github.com/GRAAL-Research/deepparse/blob/master/examples/fine_tuning.py) for a complete example
-using Pickle and [here](https://github.com/GRAAL-Research/deepparse/blob/master/examples/fine_tuning_with_csv_dataset.py)
-for a complete example using CSV.
+> See [here](https://github.com/GRAAL-Research/deepparse/blob/main/examples/fine_tuning.py) for a complete example
+> using Pickle
+> and [here](https://github.com/GRAAL-Research/deepparse/blob/main/examples/fine_tuning_with_csv_dataset.py)
+> for a complete example using CSV.
 
 ```python
 # We will retrain the fasttext version of our pretrained model.
 address_parser = AddressParser(model_type="fasttext", device=0)
 
-address_parser.retrain(training_container, 0.8, epochs=5, batch_size=8)
-
+address_parser.retrain(training_container, train_ratio=0.8, epochs=5, batch_size=8)
 ```
 
 One can also freeze some layers to speed up the training using the ``layers_to_freeze`` parameter.
 
 ```python
-address_parser.retrain(training_container, 0.8, epochs=5, batch_size=8, layers_to_freeze="seq2seq")
+address_parser.retrain(
+    training_container,
+    train_ratio=0.8,
+    epochs=5,
+    batch_size=8,
+    layers_to_freeze="seq2seq",
+)
 ```
 
-Or you can also give a specific name to the retrained model. This name will be use as the model name (for print and 
+Or you can also give a specific name to the retrained model. This name will be use as the model name (for print and
 class name) when reloading it.
 
 ```python
-address_parser.retrain(training_container, 0.8, epochs=5, batch_size=8, name_of_the_retrain_parser="MyNewParser")
+address_parser.retrain(
+    training_container,
+    train_ratio=0.8,
+    epochs=5,
+    batch_size=8,
+    name_of_the_retrain_parser="MyNewParser",
+)
 ```
 
 ### Retrain a Model With an Attention Mechanism
 
-> See [here](https://github.com/GRAAL-Research/deepparse/blob/master/examples/retrain_attention_model.py) for a complete example.
+> See [here](https://github.com/GRAAL-Research/deepparse/blob/main/examples/retrain_attention_model.py) for a complete
+> example.
 
 ```python
 # We will retrain the fasttext version of our pretrained model.
-address_parser = AddressParser(model_type="fasttext", device=0, attention_mechanism=True)
+address_parser = AddressParser(
+    model_type="fasttext", device=0, attention_mechanism=True
+)
 
-address_parser.retrain(training_container, 0.8, epochs=5, batch_size=8)
-
+address_parser.retrain(training_container, train_ratio=0.8, epochs=5, batch_size=8)
 ```
 
 ### Retrain a Model With New Tags
 
-> See [here](https://github.com/GRAAL-Research/deepparse/blob/master/examples/retrain_with_new_prediction_tags.py) for a complete example.
+> See [here](https://github.com/GRAAL-Research/deepparse/blob/main/examples/retrain_with_new_prediction_tags.py) for a
+> complete example.
 
 ```python
-
 address_components = {"ATag": 0, "AnotherTag": 1, "EOS": 2}
-address_parser.retrain(training_container, 0.8, epochs=1, batch_size=128,
-                       prediction_tags=address_components)
-
+address_parser.retrain(
+    training_container,
+    train_ratio=0.8,
+    epochs=1,
+    batch_size=128,
+    prediction_tags=address_components,
+)
 ```
 
 ### Retrain a Seq2Seq Model From Scratch
 
-> See [here](https://github.com/GRAAL-Research/deepparse/blob/master/examples/retrain_with_new_seq2seq_params.py) for
+> See [here](https://github.com/GRAAL-Research/deepparse/blob/main/examples/retrain_with_new_seq2seq_params.py) for
 > a complete example.
 
 ```python
-
 seq2seq_params = {"encoder_hidden_size": 512, "decoder_hidden_size": 512}
-address_parser.retrain(training_container, 0.8, epochs=1, batch_size=128,
-                       seq2seq_params=seq2seq_params)
-
+address_parser.retrain(
+    training_container,
+    train_ratio=0.8,
+    epochs=1,
+    batch_size=128,
+    seq2seq_params=seq2seq_params,
+)
 ```
 
 ### Download Our Models
@@ -276,8 +384,10 @@ Here are the URLs to download our pretrained models directly
 Or you can use our cli to download our pretrained models directly using:
 
 ```sh
-    download_model <model_name>
+download_model <model_name>
 ```
+
+Starting at version 0.9.8, we will also release the weights with the GitHub release note available [here](https://github.com/GRAAL-Research/deepparse/releases).
 
 ------------------
 
@@ -289,6 +399,13 @@ Before installing deepparse, you must have the latest version of [PyTorch](https
 
 ```sh
 pip install deepparse
+```
+
+- **Install the stable version of deepparse with the app extra dependencies:**
+
+```sh
+pip install deepparse[app]  # for bash terminal
+pip install 'deepparse[app]' # for ZSH terminal
 ```
 
 - **Install the latest development version of deepparse:**
@@ -329,12 +446,12 @@ and this one for the package;
 ## Contributing to Deepparse
 
 We welcome user input, whether it is regarding bugs found in the library or feature propositions ! Make sure to have a
-look at our [contributing guidelines](https://github.com/GRAAL-Research/deepparse/blob/master/.github/CONTRIBUTING.md)
+look at our [contributing guidelines](https://github.com/GRAAL-Research/deepparse/blob/main/.github/CONTRIBUTING.md)
 for more details on this matter.
 
 ## License
 
 Deepparse is LGPLv3 licensed, as found in
-the [LICENSE file](https://github.com/GRAAL-Research/deepparse/blob/master/LICENSE).
+the [LICENSE file](https://github.com/GRAAL-Research/deepparse/blob/main/LICENSE).
 
 ------------------

@@ -1,6 +1,8 @@
 # Bug with PyTorch source code makes torch.tensor as not callable for pylint.
-# no-member skip is so because child define the training_container in setup
-# pylint: disable=not-callable, too-many-public-methods, no-member, too-many-arguments
+# pylint: disable=not-callable, too-many-public-methods,too-many-arguments
+
+# Pylint error for TemporaryDirectory ask for with statement
+# pylint: disable=consider-using-with
 
 import os
 from tempfile import TemporaryDirectory
@@ -18,6 +20,7 @@ class AddressParserBase(TestCase):
     @classmethod
     def setUpClass(cls):
         cls.an_address_to_parse = "350 rue des lilas o"
+        cls.another_address_to_parse = "425 rue des lilas o"
 
     def setup_model_with_config(self, config):
         self.a_model = AddressParser(**config)
@@ -27,6 +30,7 @@ class AddressParserPredictBase(AddressParserBase):
     def assert_properly_parse(self, parsed_address, multiple_address=False):
         if multiple_address:
             self.assertIsInstance(parsed_address, List)
+            self.assertNotEqual(parsed_address[0], parsed_address[1])
             parsed_address = parsed_address[0]
         self.assertIsInstance(parsed_address, FormattedParsedAddress)
 
@@ -90,14 +94,15 @@ class AddressParserPredictNewParamsBase(TestCase):
     def training(
         self,
         address_parser: AddressParser,
-        data_container: DatasetContainer,
-        num_workers: int,
+        train_data_container: DatasetContainer,
+        num_workers: int = 1,
         prediction_tags=None,
         seq2seq_params=None,
     ):
         address_parser.retrain(
-            data_container,
-            self.a_train_ratio,
+            train_data_container,
+            val_dataset_container=None,
+            train_ratio=self.a_train_ratio,
             epochs=self.a_single_epoch,
             batch_size=self.a_batch_size,
             num_workers=num_workers,

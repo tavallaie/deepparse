@@ -1,24 +1,28 @@
 # pylint: disable=too-many-arguments, too-many-locals
 
+# Pylint error for TemporaryDirectory ask for with statement
+# pylint: disable=consider-using-with
+
 import logging
 import os
 import unittest
 from tempfile import TemporaryDirectory
-from unittest import TestCase, skipIf
+from unittest import skipIf
 from unittest.mock import patch
 
 import pytest
-import torch
 
 from deepparse.cli import parse, generate_export_path
 from tests.parser.base import PretrainedWeightsBase
 from tests.tools import create_pickle_file, create_csv_file
 
 
-class ParseTests(TestCase, PretrainedWeightsBase):
+@skipIf(os.environ["TEST_LEVEL"] == "unit", "Cannot run for unit tests since download is too long.")
+class ParseTests(PretrainedWeightsBase):
     @classmethod
     def setUpClass(cls):
-        cls.download_pre_trained_weights(cls)
+        super(ParseTests, cls).setUpClass()
+        cls.prepare_pre_trained_weights()
 
     @pytest.fixture(autouse=True)
     def inject_fixtures(self, caplog):
@@ -51,10 +55,6 @@ class ParseTests(TestCase, PretrainedWeightsBase):
     def tearDown(self) -> None:
         self.temp_dir_obj.cleanup()
 
-    @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
-    )
     def test_integration_cpu(self):
         create_pickle_file(self.fake_data_path_pickle, predict_container=True)
 
@@ -71,7 +71,6 @@ class ParseTests(TestCase, PretrainedWeightsBase):
         export_path = generate_export_path(self.fake_data_path_pickle, self.pickle_p_export_filename)
         self.assertTrue(os.path.isfile(export_path))
 
-    @skipIf(not torch.cuda.is_available(), "no gpu available")
     def test_integration_gpu(self):
         create_pickle_file(self.fake_data_path_pickle, predict_container=True)
 
@@ -88,10 +87,6 @@ class ParseTests(TestCase, PretrainedWeightsBase):
         export_path = generate_export_path(self.fake_data_path_pickle, self.pickle_p_export_filename)
         self.assertTrue(os.path.isfile(export_path))
 
-    @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
-    )
     def test_integration_logging(self):
         with self._caplog.at_level(logging.INFO):
             create_pickle_file(self.fake_data_path_pickle, predict_container=True)
@@ -117,10 +112,6 @@ class ParseTests(TestCase, PretrainedWeightsBase):
         actual_second_message = self._caplog.records[1].message
         self.assertEqual(expected_second_message, actual_second_message)
 
-    @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
-    )
     def test_integration_no_logging(self):
         with self._caplog.at_level(logging.INFO):
             create_pickle_file(self.fake_data_path_pickle, predict_container=True)
@@ -137,7 +128,6 @@ class ParseTests(TestCase, PretrainedWeightsBase):
             )
         self.assertEqual(0, len(self._caplog.records))
 
-    @skipIf(not torch.cuda.is_available(), "no gpu available")
     def test_integration_attention_model(self):
         create_pickle_file(self.fake_data_path_pickle, predict_container=True)
 
@@ -154,10 +144,6 @@ class ParseTests(TestCase, PretrainedWeightsBase):
         export_path = generate_export_path(self.fake_data_path_pickle, self.pickle_p_export_filename)
         self.assertTrue(os.path.isfile(export_path))
 
-    @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
-    )
     def test_integration_json(self):
         create_pickle_file(self.fake_data_path_pickle, predict_container=True)
 
@@ -174,10 +160,6 @@ class ParseTests(TestCase, PretrainedWeightsBase):
         export_path = generate_export_path(self.fake_data_path_pickle, self.json_export_filename)
         self.assertTrue(os.path.isfile(export_path))
 
-    @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
-    )
     def test_integration_csv(self):
         create_csv_file(self.fake_data_path_csv, predict_container=True)
 
@@ -196,10 +178,6 @@ class ParseTests(TestCase, PretrainedWeightsBase):
         export_path = generate_export_path(self.fake_data_path_csv, self.csv_export_filename)
         self.assertTrue(os.path.isfile(export_path))
 
-    @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
-    )
     def test_integration_csv_separator(self):
         sep = ";"
         create_csv_file(self.fake_data_path_csv, predict_container=True, separator=sep)
@@ -221,10 +199,6 @@ class ParseTests(TestCase, PretrainedWeightsBase):
         export_path = generate_export_path(self.fake_data_path_pickle, self.csv_export_filename)
         self.assertTrue(os.path.isfile(export_path))
 
-    @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
-    )
     def test_ifIsCSVFile_noColumnName_raiseValueError(self):
         create_csv_file(self.fake_data_path_csv, predict_container=True)
 
@@ -239,10 +213,6 @@ class ParseTests(TestCase, PretrainedWeightsBase):
                 ]
             )
 
-    @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
-    )
     def test_ifIsNotSupportedFile_raiseValueError(self):
         create_csv_file(self.fake_data_path_csv, predict_container=True)
 
@@ -257,10 +227,6 @@ class ParseTests(TestCase, PretrainedWeightsBase):
                 ]
             )
 
-    @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
-    )
     def test_ifIsNotSupportedExportFile_raiseValueError(self):
         create_csv_file(self.fake_data_path_csv, predict_container=True)
 
@@ -275,14 +241,8 @@ class ParseTests(TestCase, PretrainedWeightsBase):
                 ]
             )
 
-    @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
-    )
     def test_ifPathToFakeRetrainModel_thenUseFakeRetrainModel(self):
         with self._caplog.at_level(logging.INFO):
-            # We use the default path to fasttext model as a "retrain model path"
-            path_to_retrained_model = os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "fasttext.ckpt")
             create_pickle_file(self.fake_data_path_pickle, predict_container=True)
 
             parse.main(
@@ -293,20 +253,16 @@ class ParseTests(TestCase, PretrainedWeightsBase):
                     "--device",
                     self.cpu_device,
                     "--path_to_retrained_model",
-                    path_to_retrained_model,
+                    self.path_to_retrain_fasttext,
                 ]
             )
 
         expected_first_message = (
-            f"Parsing dataset file {self.fake_data_path_pickle} using the parser " f"PreTrainedFastTextAddressParser"
+            f"Parsing dataset file {self.fake_data_path_pickle} using the parser PreTrainedFastTextAddressParser"
         )
         actual_first_message = self._caplog.records[0].message
         self.assertEqual(expected_first_message, actual_first_message)
 
-    @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
-    )
     def test_ifPathToFastTextRetrainModel_thenUseFastTextRetrainModel(self):
         with self._caplog.at_level(logging.INFO):
             path_to_retrained_model = self.path_to_retrain_fasttext
@@ -330,10 +286,6 @@ class ParseTests(TestCase, PretrainedWeightsBase):
         actual_first_message = self._caplog.records[0].message
         self.assertEqual(expected_first_message, actual_first_message)
 
-    @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
-    )
     def test_ifPathToBPEmbRetrainModel_thenUseBPEmbRetrainModel(self):
         with self._caplog.at_level(logging.INFO):
             create_pickle_file(self.fake_data_path_pickle, predict_container=True)
@@ -356,10 +308,6 @@ class ParseTests(TestCase, PretrainedWeightsBase):
         actual_first_message = self._caplog.records[2].message
         self.assertEqual(expected_first_message, actual_first_message)
 
-    @skipIf(
-        not os.path.exists(os.path.join(os.path.expanduser("~"), ".cache", "deepparse", "cc.fr.300.bin")),
-        "download of model too long for test in runner",
-    )
     def test_ifCachePath_thenUseNewCachePath(self):
         create_pickle_file(self.fake_data_path_pickle, predict_container=True)
 
